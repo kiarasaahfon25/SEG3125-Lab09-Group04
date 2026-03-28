@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { GraduationCap } from 'lucide-react';
+import LanguageSwitcher from '@/app/components/LanguageSwitcher';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
@@ -38,7 +39,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher className="rounded-xl bg-white/90 backdrop-blur-sm border border-gray-200 shadow-sm px-3 py-2" />
+      </div>
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-3 rounded-xl mb-4">

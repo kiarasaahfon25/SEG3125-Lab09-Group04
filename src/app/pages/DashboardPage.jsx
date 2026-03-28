@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import LanguageSwitcher from '@/app/components/LanguageSwitcher';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -215,7 +216,10 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-8 text-gray-600">
+      <div className="relative p-8 text-gray-600">
+        <div className="absolute top-8 right-8 z-10">
+          <LanguageSwitcher className="rounded-xl bg-white border border-gray-200 shadow-sm px-3 py-2" />
+        </div>
         Loading dashboard…
       </div>
     );
@@ -223,11 +227,14 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}!
-        </h1>
-        <p className="text-gray-600">Here&apos;s what&apos;s happening with your studies today</p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}!
+          </h1>
+          <p className="text-gray-600">Here&apos;s what&apos;s happening with your studies today</p>
+        </div>
+        <LanguageSwitcher className="shrink-0 rounded-xl bg-white border border-gray-200 shadow-sm px-3 py-2 self-end sm:self-start" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
