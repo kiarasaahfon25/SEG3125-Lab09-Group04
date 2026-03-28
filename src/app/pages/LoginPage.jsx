@@ -142,9 +142,6 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-gray-500 text-sm">
-          Run <code className="text-xs bg-gray-100 px-1 rounded">npm run dev</code> for the app and API (MongoDB must be
-          running). Copy <code className="text-xs bg-gray-100 px-1 rounded">.env.example</code> to{' '}
-          <code className="text-xs bg-gray-100 px-1 rounded">.env</code> to override defaults.
         </p>
       </div>
     </div>
