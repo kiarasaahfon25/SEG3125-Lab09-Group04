@@ -1,29 +1,31 @@
 import { Router } from 'express';
-import UserSettings from '../models/UserSettings.js';
+import { getDb } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 
 const router = Router();
 router.use(authRequired);
 
-router.get('/', async (req, res) => {
-  let settings = await UserSettings.findOne({ user_id: req.userId }).lean();
+router.get('/', (req, res) => {
+  const db = getDb();
+  const uid = Number(req.userId);
+  let settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(uid);
   if (!settings) {
-    const created = await UserSettings.create({ user_id: req.userId });
-    settings = created.toObject();
+    db.prepare('INSERT INTO user_settings (user_id) VALUES (?)').run(uid);
+    settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(uid);
   }
   res.json({
-    setting_id: settings._id.toString(),
-    user_id: settings.user_id.toString(),
+    setting_id: String(settings.id),
+    user_id: String(settings.user_id),
     theme: settings.theme,
     weekly_study_goal_hours: settings.weekly_study_goal_hours,
-    study_reminders: settings.study_reminders,
-    daily_summary_reminders: settings.daily_summary_reminders,
-    deadline_reminders: settings.deadline_reminders,
+    study_reminders: Boolean(settings.study_reminders),
+    daily_summary_reminders: Boolean(settings.daily_summary_reminders),
+    deadline_reminders: Boolean(settings.deadline_reminders),
     updated_at: settings.updated_at,
   });
 });
 
-router.put('/', async (req, res) => {
+router.put('/', (req, res) => {
   const {
     theme,
     weekly_study_goal_hours,
@@ -31,33 +33,54 @@ router.put('/', async (req, res) => {
     daily_summary_reminders,
     deadline_reminders,
   } = req.body;
-  const $set = {};
+  const db = getDb();
+  const uid = Number(req.userId);
+
+  if (theme != null && !['light', 'dark'].includes(theme)) {
+    return res.status(400).json({ error: 'theme must be light or dark' });
+  }
+
+  const existing = db.prepare('SELECT id FROM user_settings WHERE user_id = ?').get(uid);
+  if (!existing) {
+    db.prepare('INSERT INTO user_settings (user_id) VALUES (?)').run(uid);
+  }
+
+  const updates = [];
+  const values = [];
   if (theme != null) {
-    if (!['light', 'dark'].includes(theme)) {
-      return res.status(400).json({ error: 'theme must be light or dark' });
-    }
-    $set.theme = theme;
+    updates.push('theme = ?');
+    values.push(theme);
   }
   if (weekly_study_goal_hours != null) {
-    $set.weekly_study_goal_hours = Math.max(1, Math.min(80, Number(weekly_study_goal_hours)));
+    updates.push('weekly_study_goal_hours = ?');
+    values.push(Math.max(1, Math.min(80, Number(weekly_study_goal_hours))));
   }
-  if (typeof study_reminders === 'boolean') $set.study_reminders = study_reminders;
+  if (typeof study_reminders === 'boolean') {
+    updates.push('study_reminders = ?');
+    values.push(study_reminders ? 1 : 0);
+  }
   if (typeof daily_summary_reminders === 'boolean') {
-    $set.daily_summary_reminders = daily_summary_reminders;
+    updates.push('daily_summary_reminders = ?');
+    values.push(daily_summary_reminders ? 1 : 0);
   }
-  if (typeof deadline_reminders === 'boolean') $set.deadline_reminders = deadline_reminders;
-  const settings = await UserSettings.findOneAndUpdate(
-    { user_id: req.userId },
-    { $set, $setOnInsert: { user_id: req.userId } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  ).lean();
+  if (typeof deadline_reminders === 'boolean') {
+    updates.push('deadline_reminders = ?');
+    values.push(deadline_reminders ? 1 : 0);
+  }
+  if (updates.length) {
+    updates.push("updated_at = datetime('now')");
+    values.push(uid);
+    db.prepare(`UPDATE user_settings SET ${updates.join(', ')} WHERE user_id = ?`).run(...values);
+  }
+
+  const settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(uid);
   res.json({
-    setting_id: settings._id.toString(),
+    setting_id: String(settings.id),
     theme: settings.theme,
     weekly_study_goal_hours: settings.weekly_study_goal_hours,
-    study_reminders: settings.study_reminders,
-    daily_summary_reminders: settings.daily_summary_reminders,
-    deadline_reminders: settings.deadline_reminders,
+    study_reminders: Boolean(settings.study_reminders),
+    daily_summary_reminders: Boolean(settings.daily_summary_reminders),
+    deadline_reminders: Boolean(settings.deadline_reminders),
     updated_at: settings.updated_at,
   });
 });

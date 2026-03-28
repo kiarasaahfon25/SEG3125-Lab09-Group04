@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
+import { initDb } from './db.js';
 import authRoutes from './routes/auth.js';
 import coursesRoutes from './routes/courses.js';
 import tasksRoutes from './routes/tasks.js';
@@ -10,7 +10,6 @@ import focusSessionsRoutes from './routes/focusSessions.js';
 import settingsRoutes from './routes/settings.js';
 
 const PORT = process.env.PORT || 3001;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/studyflow';
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -27,15 +26,9 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-async function main() {
-  await mongoose.connect(MONGODB_URI);
-  console.log('MongoDB connected');
-  app.listen(PORT, () => {
-    console.log(`API listening on http://localhost:${PORT}`);
-  });
-}
+initDb();
+console.log('SQLite database ready');
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
+app.listen(PORT, () => {
+  console.log(`API listening on http://localhost:${PORT}`);
 });

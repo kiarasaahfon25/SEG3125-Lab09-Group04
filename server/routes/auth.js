@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import User from '../models/User.js';
-import UserSettings from '../models/UserSettings.js';
+import { getDb, lastInsertRowid } from '../db.js';
 import { authRequired, signToken } from '../middleware/auth.js';
 
 const router = Router();
@@ -12,24 +11,29 @@ router.post('/register', async (req, res) => {
     if (!full_name || !email || !password) {
       return res.status(400).json({ error: 'full_name, email, and password are required' });
     }
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    const db = getDb();
+    const normalizedEmail = email.toLowerCase().trim();
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
     if (existing) {
       return res.status(409).json({ error: 'Email already registered' });
     }
     const password_hash = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      full_name: full_name.trim(),
-      email: email.toLowerCase().trim(),
-      password_hash,
-    });
-    await UserSettings.create({ user_id: user._id });
-    const token = signToken(user._id);
+    const insertUser = db.prepare(
+      'INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)'
+    );
+    const insertSettings = db.prepare('INSERT INTO user_settings (user_id) VALUES (?)');
+
+    const info = insertUser.run(full_name.trim(), normalizedEmail, password_hash);
+    const userId = lastInsertRowid(info);
+    insertSettings.run(userId);
+
+    const token = signToken(userId);
     res.status(201).json({
       token,
       user: {
-        id: user._id.toString(),
-        full_name: user.full_name,
-        email: user.email,
+        id: String(userId),
+        full_name: full_name.trim(),
+        email: normalizedEmail,
       },
     });
   } catch (e) {
@@ -44,15 +48,16 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password are required' });
     }
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const db = getDb();
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    const token = signToken(user._id);
+    const token = signToken(user.id);
     res.json({
       token,
       user: {
-        id: user._id.toString(),
+        id: String(user.id),
         full_name: user.full_name,
         email: user.email,
       },
@@ -63,29 +68,31 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', authRequired, async (req, res) => {
+router.get('/me', authRequired, (req, res) => {
   try {
-    const user = await User.findById(req.userId).lean();
+    const db = getDb();
+    const uid = Number(req.userId);
+    const user = db.prepare('SELECT id, full_name, email FROM users WHERE id = ?').get(uid);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    let settings = await UserSettings.findOne({ user_id: req.userId }).lean();
+    let settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(uid);
     if (!settings) {
-      settings = await UserSettings.create({ user_id: req.userId });
-      settings = settings.toObject();
+      db.prepare('INSERT INTO user_settings (user_id) VALUES (?)').run(uid);
+      settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(uid);
     }
     res.json({
       user: {
-        id: user._id.toString(),
+        id: String(user.id),
         full_name: user.full_name,
         email: user.email,
       },
       settings: {
         theme: settings.theme,
         weekly_study_goal_hours: settings.weekly_study_goal_hours,
-        study_reminders: settings.study_reminders,
-        daily_summary_reminders: settings.daily_summary_reminders,
-        deadline_reminders: settings.deadline_reminders,
+        study_reminders: Boolean(settings.study_reminders),
+        daily_summary_reminders: Boolean(settings.daily_summary_reminders),
+        deadline_reminders: Boolean(settings.deadline_reminders),
       },
     });
   } catch (e) {
@@ -94,26 +101,45 @@ router.get('/me', authRequired, async (req, res) => {
   }
 });
 
-router.patch('/me', authRequired, async (req, res) => {
+router.patch('/me', authRequired, (req, res) => {
   try {
     const { full_name, email } = req.body;
-    const updates = {};
-    if (full_name != null) updates.full_name = String(full_name).trim();
+    const db = getDb();
+    const uid = Number(req.userId);
+    const userRow = db.prepare('SELECT id FROM users WHERE id = ?').get(uid);
+    if (!userRow) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     if (email != null) {
       const next = String(email).toLowerCase().trim();
-      const taken = await User.findOne({ email: next, _id: { $ne: req.userId } });
+      const taken = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(next, uid);
       if (taken) {
         return res.status(409).json({ error: 'Email already in use' });
       }
-      updates.email = next;
     }
-    const user = await User.findByIdAndUpdate(req.userId, { $set: updates }, { new: true }).lean();
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    const updates = [];
+    const values = [];
+    if (full_name != null) {
+      updates.push('full_name = ?');
+      values.push(String(full_name).trim());
     }
+    if (email != null) {
+      updates.push('email = ?');
+      values.push(String(email).toLowerCase().trim());
+    }
+    if (updates.length === 0) {
+      const u = db.prepare('SELECT id, full_name, email FROM users WHERE id = ?').get(uid);
+      return res.json({
+        user: { id: String(u.id), full_name: u.full_name, email: u.email },
+      });
+    }
+    updates.push("updated_at = datetime('now')");
+    values.push(uid);
+    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    const user = db.prepare('SELECT id, full_name, email FROM users WHERE id = ?').get(uid);
     res.json({
       user: {
-        id: user._id.toString(),
+        id: String(user.id),
         full_name: user.full_name,
         email: user.email,
       },
