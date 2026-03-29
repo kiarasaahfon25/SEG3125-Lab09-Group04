@@ -189,50 +189,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-gray-100 p-2 rounded-lg">
-              {theme === 'light' ? (
-                <Sun className="w-5 h-5 text-gray-700" />
-              ) : (
-                <Moon className="w-5 h-5 text-gray-700" />
-              )}
-            </div>
-            <h2 className="text-xl font-bold text-gray-900">Appearance</h2>
-          </div>
-
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setTheme('light')}
-              className={`flex-1 p-4 rounded-lg border-2 transition ${
-                theme === 'light' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <Sun className="w-6 h-6 text-gray-700" />
-                <span className="font-medium text-gray-900">Light mode</span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTheme('dark')}
-              className={`flex-1 p-4 rounded-lg border-2 transition ${
-                theme === 'dark' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <Moon className="w-6 h-6 text-gray-700" />
-                <span className="font-medium text-gray-900">Dark mode</span>
-              </div>
-            </button>
-          </div>
-          <p className="mt-4 text-sm text-gray-600">
-            Theme preference is saved to your account (full dark UI styling can be added later).
-          </p>
-        </div>
-
         <div className="flex items-center justify-between p-6 bg-white rounded-xl shadow-sm border border-gray-200">
           {saved && <p className="text-green-600 font-medium">Settings saved successfully.</p>}
           <button
