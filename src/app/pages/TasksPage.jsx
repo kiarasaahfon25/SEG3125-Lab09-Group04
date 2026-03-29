@@ -376,18 +376,27 @@ export default function TasksPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Or new course name</label>
-                <input
-                  type="text"
-                  value={formData.new_course_name}
-                  onChange={(e) => setFormData({ ...formData, new_course_name: e.target.value, course_id: '' })}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="e.g., CS 101"
-                  disabled={Boolean(formData.course_id)}
-                />
-              </div>
-
+              
+              {!formData.course_id && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Or new course name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.new_course_name}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        new_course_name: e.target.value,
+                        course_id: '',
+                      })
+                    }
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    placeholder="e.g., CS 101"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
                 <input
